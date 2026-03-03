@@ -190,6 +190,7 @@ export default function App() {
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         onRename={handleRename}
+        onNewSession={createNewSession}
       />
       <div ref={splitContainerRef} className="flex-1 flex min-w-0" aria-hidden={sidebarOpen ? true : undefined}>
         {/* Primary pane */}

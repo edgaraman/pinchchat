@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
-import { X, Search, Pin, Trash2, Columns2, Clock, Bot, MessageSquare, Globe, Zap, ArrowUpCircle, Download, Pencil } from 'lucide-react';
+import { X, Search, Pin, Trash2, Columns2, Clock, Bot, MessageSquare, Globe, Zap, ArrowUpCircle, Download, Pencil, Plus, FolderKanban } from 'lucide-react';
 import type { Session } from '../types';
 import { useT } from '../hooks/useLocale';
 import { SessionIcon } from './SessionIcon';
@@ -67,6 +67,15 @@ const WIDTH_KEY = 'pinchchat-sidebar-width';
 const ORDER_KEY = 'pinchchat-session-order';
 const FILTER_KEY = 'pinchchat-session-filter';
 const NAMES_KEY = 'pinchchat-session-names';
+const TAB_KEY = 'pinchchat-sidebar-tab';
+
+function getSavedTab(): 'sessions' | 'projects' {
+  try {
+    const raw = localStorage.getItem(TAB_KEY);
+    if (raw === 'projects') return 'projects';
+  } catch { /* noop */ }
+  return 'sessions';
+}
 
 function getCustomNames(): Record<string, string> {
   try {
@@ -169,9 +178,10 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onRename?: (key: string, label: string) => Promise<boolean>;
+  onNewSession?: () => void;
 }
 
-export function Sidebar({ sessions, activeSession, onSwitch, onDelete, onSplit, splitSession, open, onClose, onRename }: Props) {
+export function Sidebar({ sessions, activeSession, onSwitch, onDelete, onSplit, splitSession, open, onClose, onRename, onNewSession }: Props) {
   const t = useT();
   const [filter, setFilter] = useState('');
   const [focusIdx, setFocusIdx] = useState(-1);
@@ -188,6 +198,7 @@ export function Sidebar({ sessions, activeSession, onSwitch, onDelete, onSplit, 
   const [customNames, setCustomNames] = useState<Record<string, string>>(getCustomNames);
   const [renamingKey, setRenamingKey] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
+  const [activeTab, setActiveTab] = useState<'sessions' | 'projects'>(getSavedTab);
   const renameInputRef = useRef<HTMLInputElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -247,6 +258,13 @@ export function Sidebar({ sessions, activeSession, onSwitch, onDelete, onSplit, 
     setRenameValue(currentName);
     // Focus the input after render
     requestAnimationFrame(() => renameInputRef.current?.focus());
+  }, []);
+
+  const switchTab = useCallback((tab: 'sessions' | 'projects') => {
+    setActiveTab(tab);
+    try {
+      localStorage.setItem(TAB_KEY, tab);
+    } catch { /* noop */ }
   }, []);
 
   const commitRename = useCallback(() => {
@@ -357,14 +375,54 @@ export function Sidebar({ sessions, activeSession, onSwitch, onDelete, onSplit, 
             </div>
             <span className="font-semibold text-sm text-pc-text tracking-wide">{t('sidebar.title')}</span>
           </div>
-          <button onClick={onClose} className="lg:hidden p-1.5 rounded-xl hover:bg-[var(--pc-hover)] text-pc-text-secondary transition-colors" aria-label={t('sidebar.close')}>
-            <X size={16} />
-          </button>
+          <div className="flex items-center gap-1">
+            {onNewSession && (
+              <button onClick={onNewSession} className="p-1.5 rounded-xl hover:bg-[var(--pc-hover)] text-pc-text-secondary transition-colors" title="New chat" aria-label="New chat">
+                <Plus size={16} />
+              </button>
+            )}
+            <button onClick={onClose} className="lg:hidden p-1.5 rounded-xl hover:bg-[var(--pc-hover)] text-pc-text-secondary transition-colors" aria-label={t('sidebar.close')}>
+              <X size={16} />
+            </button>
+          </div>
         </div>
 
-        {/* Session search */}
-        {sessions.length > 3 && (
-          <div className="px-2 pt-2">
+        {/* Tabs */}
+        <div className="px-3 py-2 border-b border-pc-border">
+          <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--pc-hover)]">
+            <button
+              onClick={() => switchTab('sessions')}
+              className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                activeTab === 'sessions'
+                  ? 'bg-[var(--pc-bg-elevated)] text-pc-text shadow-sm'
+                  : 'text-pc-text-muted hover:text-pc-text-secondary'
+              }`}
+              aria-pressed={activeTab === 'sessions'}
+            >
+              <MessageSquare size={12} />
+              {t('sidebar.tabSessions')}
+            </button>
+            <button
+              onClick={() => switchTab('projects')}
+              className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                activeTab === 'projects'
+                  ? 'bg-[var(--pc-bg-elevated)] text-pc-text shadow-sm'
+                  : 'text-pc-text-muted hover:text-pc-text-secondary'
+              }`}
+              aria-pressed={activeTab === 'projects'}
+            >
+              <FolderKanban size={12} />
+              {t('sidebar.tabProjects')}
+            </button>
+          </div>
+        </div>
+
+        {/* Sessions Tab Content */}
+        {activeTab === 'sessions' && (
+          <>
+            {/* Session search */}
+            {sessions.length > 3 && (
+              <div className="px-2 pt-2">
             <div className="relative">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-pc-text-muted" />
               <input
@@ -637,6 +695,24 @@ export function Sidebar({ sessions, activeSession, onSwitch, onDelete, onSplit, 
             );
           })}
         </div>
+          </>
+        )}
+
+        {/* Projects Tab Content */}
+        {activeTab === 'projects' && (
+          <div className="flex-1 overflow-y-auto py-8 px-4">
+            <div className="flex flex-col items-center justify-center gap-3 text-center">
+              <div className="p-3 rounded-2xl bg-[var(--pc-hover)]">
+                <FolderKanban size={24} className="text-pc-text-muted" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-pc-text">{t('sidebar.projectsTitle')}</p>
+                <p className="text-xs text-pc-text-muted mt-1">{t('sidebar.projectsEmpty')}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Footer with version */}
         <SidebarFooter />
         {/* Resize drag handle */}

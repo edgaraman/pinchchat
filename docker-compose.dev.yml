@@ -1,0 +1,24 @@
+# PinchChat Development Environment
+#
+# This compose file runs a DEV build of PinchChat on port 5202
+# Build the image locally from your source code changes
+#
+# Usage:
+#   docker compose -f docker-compose.dev.yml up --build -d
+#   docker compose -f docker-compose.dev.yml down
+
+services:
+  pinchchat-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pinchchat-dev
+    ports:
+      - "5202:80"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
