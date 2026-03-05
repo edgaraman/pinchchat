@@ -40,6 +40,13 @@ export default function App() {
   const splitRatioRef = useRef(splitRatio);
   const secondary = useSecondarySession(getClient, addEventListener, splitSession);
   const t = useT();
+
+  // URL-based session targeting: parse ?session= from URL
+  const [targetSession, setTargetSession] = useState<string | null>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('session');
+  });
+  const hasAutoSwitchedRef = useRef(false);
   const resolveAgentDisplayName = useCallback((sessionKey: string | null | undefined): string | undefined => {
     if (!sessionKey) return agentIdentity?.name;
     const session = sessions.find((s) => s.key === sessionKey);
@@ -131,6 +138,31 @@ export default function App() {
     setBaseTitle(session?.label || session?.key);
     return () => setBaseTitle(undefined);
   }, [activeSession, sessions]);
+
+  // URL-based session targeting: auto-switch when connected and sessions are loaded
+  useEffect(() => {
+    if (hasAutoSwitchedRef.current) return;
+    if (!targetSession) return;
+    if (status !== 'connected') return;
+    if (sessions.length === 0) return;
+
+    // Check if the target session exists in the list
+    const sessionExists = sessions.some(s => s.key === targetSession);
+    if (!sessionExists) {
+      // Session not found, clear target and URL param to avoid re-triggering
+      hasAutoSwitchedRef.current = true;
+      setTargetSession(null);
+      window.history.replaceState({}, '', window.location.pathname);
+      return;
+    }
+
+    // Perform the auto-switch
+    hasAutoSwitchedRef.current = true;
+    switchSession(targetSession);
+    setTargetSession(null);
+    // Clean the URL parameter
+    window.history.replaceState({}, '', window.location.pathname);
+  }, [targetSession, status, sessions, switchSession]);
 
   // Keyboard shortcuts: Escape, ?, Alt+↑/↓ for session navigation
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
